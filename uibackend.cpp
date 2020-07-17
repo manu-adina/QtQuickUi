@@ -65,6 +65,20 @@ UiBackEnd::UiBackEnd(QObject *parent) : QObject(parent)
     first_val = true;
     count_vals = 1;
 
+    // Get the maximum
+    query.exec("SELECT MAX(Measurement) FROM device_1_Measurements WHERE Timestamp >= NOW() - INTERVAL 1 DAY");
+    if(query.next()) {
+        m_max_1 = query.value(0).toString();
+        qDebug() << "Device 1 - Max (Last 24 Hrs):" << m_max_1;
+    }
+
+    // Get the minimum
+    query.exec("SELECT MIN(Measurement) FROM device_1_Measurements WHERE Timestamp >= NOW() - INTERVAL 1 DAY");
+    if(query.next()) {
+        m_min_1 = query.value(0).toString();
+        qDebug() << "Device 1 - Min (Last 24 Hrs):" << m_min_1;
+    }
+
     query.exec("SELECT AVG(Measurement) FROM device_2_Measurements");
     if(query.next()) {
         m_average_2 = query.value(0).toString();
@@ -90,6 +104,18 @@ UiBackEnd::UiBackEnd(QObject *parent) : QObject(parent)
     }
     first_val = true;
     count_vals = 1;
+
+    query.exec("SELECT MAX(Measurement) FROM device_2_Measurements WHERE Timestamp >= NOW() - INTERVAL 1 DAY");
+    if(query.next()) {
+        m_max_2 = query.value(0).toString();
+        qDebug() << "Device 2 - Max (Last 24 Hrs):" << m_max_2;
+    }
+
+    query.exec("SELECT MIN(Measurement) FROM device_2_Measurements WHERE Timestamp >= NOW() - INTERVAL 1 DAY");
+    if(query.next()) {
+        m_min_2 = query.value(0).toString();
+        qDebug() << "Device 2 - Min (Last 24 Hrs):" << m_min_2;
+    }
 
     query.exec("SELECT AVG(Measurement) FROM device_3_Measurements");
     if(query.next()) {
@@ -117,6 +143,19 @@ UiBackEnd::UiBackEnd(QObject *parent) : QObject(parent)
     first_val = true;
     count_vals = 1;
 
+
+    query.exec("SELECT MAX(Measurement) FROM device_3_Measurements WHERE Timestamp >= NOW() - INTERVAL 1 DAY");
+    if(query.next()) {
+        m_max_3 = query.value(0).toString();
+        qDebug() << "Device 3 - Max (Last 24 Hrs):" << m_max_3;
+    }
+
+    query.exec("SELECT MIN(Measurement) FROM device_3_Measurements WHERE Timestamp >= NOW() - INTERVAL 1 DAY");
+    if(query.next()) {
+        m_min_3 = query.value(0).toString();
+        qDebug() << "Device 3 - Min (Last 24 Hrs):" << m_min_3;
+    }
+
     query.exec("SELECT AVG(Measurement) FROM device_4_Measurements");
     if(query.next()) {
         m_average_4 = query.value(0).toString();
@@ -143,11 +182,23 @@ UiBackEnd::UiBackEnd(QObject *parent) : QObject(parent)
     first_val = true;
     count_vals = 1;
 
+    query.exec("SELECT MAX(Measurement) FROM device_4_Measurements WHERE Timestamp >= NOW() - INTERVAL 1 DAY");
+    if(query.next()) {
+        m_max_4 = query.value(0).toString();
+        qDebug() << "Device 4 - Max (Last 24 Hrs):" << m_max_4;
+    }
+
+    query.exec("SELECT MIN(Measurement) FROM device_4_Measurements WHERE Timestamp >= NOW() - INTERVAL 1 DAY");
+    if(query.next()) {
+        m_min_4 = query.value(0).toString();
+        qDebug() << "Device 4 - Min (Last 24 Hrs):" << m_min_4;
+    }
+
     /* <2> Get new MQTT values and recalc the average and update last vals
      */
 
     QMqttClient *m_client = new QMqttClient(this);
-    m_client->setHostname("localhost");
+    m_client->setHostname("13.210.176.222");
     m_client->setPort(1883);
 
     /* MQTT module consists of Asyncronous Programming
@@ -173,8 +224,10 @@ UiBackEnd::UiBackEnd(QObject *parent) : QObject(parent)
 void UiBackEnd::updateMessage(const QMqttMessage &msg) {
 
     QString topic_name = msg.topic().name();
-    if(topic_name == "/device_1") {
-        qDebug() << "Received Msg For Device_1";
+    QStringList topic_str_list = topic_name.split("/");
+    QString device_name = topic_str_list[1];
+    qDebug() << device_name;
+    if(device_name == "device_1") {
         m_val_1 = msg.payload();
         emit valChanged_1();
 
@@ -185,7 +238,17 @@ void UiBackEnd::updateMessage(const QMqttMessage &msg) {
         n_measurements_1++;
         m_average_1 = QString::number(((m_average_1.toFloat() * (n_measurements_1 - 1)) + m_val_1.toFloat()) / static_cast<float>(n_measurements_1));
         emit averageChanged_1();
-    } else if(topic_name == "/device_2"){
+
+        if(m_val_1 > m_max_1) {
+            m_max_1 = m_val_1;
+            emit maxChanged_1();
+        }
+
+        if(m_val_1 < m_min_1) {
+            m_min_1 = m_val_1;
+            emit minChanged_1();
+        }
+    } else if(device_name == "device_2"){
         m_val_2 = msg.payload();
         emit valChanged_2();
 
@@ -196,7 +259,17 @@ void UiBackEnd::updateMessage(const QMqttMessage &msg) {
         n_measurements_2++;
         m_average_2 = QString::number(((m_average_2.toFloat() * (n_measurements_2 - 1)) + m_val_2.toFloat()) / static_cast<float>(n_measurements_2));
         emit averageChanged_2();
-    } else if(topic_name == "/device_3") {
+
+        if(m_val_2 > m_max_2) {
+            m_max_2 = m_val_2;
+            emit maxChanged_2();
+        }
+
+        if(m_val_2 < m_min_2) {
+            m_min_2 = m_val_2;
+            emit minChanged_2();
+        }
+    } else if(device_name == "device_3") {
         m_val_3 = msg.payload();
         emit valChanged_3();
 
@@ -207,7 +280,17 @@ void UiBackEnd::updateMessage(const QMqttMessage &msg) {
         n_measurements_3++;
         m_average_3 = QString::number(((m_average_3.toFloat() * (n_measurements_3 - 1)) + m_val_3.toFloat()) / static_cast<float>(n_measurements_3));
         emit averageChanged_3();
-    } else if(topic_name == "/device_4") {
+
+        if(m_val_3 > m_max_3) {
+            m_max_3 = m_val_3;
+            emit maxChanged_3();
+        }
+
+        if(m_val_3 < m_min_3) {
+            m_min_3 = m_val_3;
+            emit minChanged_3();
+        }
+    } else if(device_name == "device_4") {
         m_val_4 = msg.payload();
         emit valChanged_4();
 
@@ -218,31 +301,20 @@ void UiBackEnd::updateMessage(const QMqttMessage &msg) {
         n_measurements_4++;
         m_average_4 = QString::number(((m_average_4.toFloat() * (n_measurements_4 - 1)) + m_val_4.toFloat()) / static_cast<float>(n_measurements_4));
         emit averageChanged_4();
+
+        if(m_val_4 > m_max_4) {
+            m_max_4 = m_val_4;
+            emit maxChanged_4();
+        }
+
+        if(m_val_4 < m_min_4) {
+            m_min_4 = m_val_4;
+            emit minChanged_4();
+        }
     } else {
         qDebug() << "Topic Not Found!";
     }
-
-    //emit valChanged_2();
-    //emit valChanged_3();
-    //emit valChanged_4();
     qDebug() << "Received a message" << msg.payload() << m_average_1;
-}
-
-
-QString UiBackEnd::getAverage_1() {
-    return m_average_1;
-}
-
-QString UiBackEnd::getAverage_2() {
-    return m_average_2;
-}
-
-QString UiBackEnd::getAverage_3() {
-    return m_average_3;
-}
-
-QString UiBackEnd::getAverage_4() {
-    return m_average_4;
 }
 
 
@@ -262,6 +334,22 @@ QString UiBackEnd::getVal_4() {
     return m_val_4;
 }
 
+QString UiBackEnd::getAverage_1() {
+    return m_average_1;
+}
+
+QString UiBackEnd::getAverage_2() {
+    return m_average_2;
+}
+
+QString UiBackEnd::getAverage_3() {
+    return m_average_3;
+}
+
+QString UiBackEnd::getAverage_4() {
+    return m_average_4;
+}
+
 QList<int> UiBackEnd::getLastVals_1() {
     return m_last_vals_1;
 }
@@ -276,4 +364,36 @@ QList<int> UiBackEnd::getLastVals_3() {
 
 QList<int> UiBackEnd::getLastVals_4() {
     return m_last_vals_4;
+}
+
+QString UiBackEnd::getMax_1() {
+    return m_max_1;
+}
+
+QString UiBackEnd::getMax_2() {
+    return m_max_2;
+}
+
+QString UiBackEnd::getMax_3() {
+    return m_max_3;
+}
+
+QString UiBackEnd::getMax_4() {
+    return m_max_4;
+}
+
+QString UiBackEnd::getMin_1() {
+    return m_min_1;
+}
+
+QString UiBackEnd::getMin_2() {
+    return m_min_2;
+}
+
+QString UiBackEnd::getMin_3() {
+    return m_min_3;
+}
+
+QString UiBackEnd::getMin_4() {
+    return m_min_4;
 }
